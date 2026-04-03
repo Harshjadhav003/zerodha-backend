@@ -16,7 +16,7 @@ const url = process.env.MONGO_URL;
 const app = express();
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:5173","http://localhost:3002"],
+    origin: "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -309,8 +309,16 @@ app.post("/newOrders", async (req, res) => {
   }
 });
 
-app.listen(3002,()=>{
-    console.log("App started !");
-    mongoose.connect(url)
+
+ mongoose.connect(url)
+  .then(() => {
     console.log("DB CONNECTED");
-});
+
+    app.listen(PORT, () => {
+      console.log(`App started on port ${PORT}!`);
+    });
+
+  })
+  .catch((err) => {
+    console.log("DB connection error:", err);
+  });

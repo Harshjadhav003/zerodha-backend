@@ -2,50 +2,102 @@ const User = require("../model/Usermodel");
 const { createSecretToken } = require("../util/SecretToken");
 const bcrypt = require("bcryptjs");
 
-module.exports.Signup = async (req, res, next) => {
+
+// ================= SIGNUP =================
+module.exports.Signup = async (req, res) => {
   try {
-    const { email, password, username, createdAt } = req.body;
+    const { email, password, username } = req.body;
+
+    if (!email || !password || !username) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.json({ message: "User already exists" });
+      return res.status(400).json({
+        success: false,
+        message: "User already exists",
+      });
     }
-    const user = await User.create({ email, password, username, createdAt });
+
+    const user = await User.create({ email, password, username });
+
     const token = createSecretToken(user._id);
+
+    //  Set cookie
     res.cookie("token", token, {
-      withCredentials: true,
-      httpOnly: false,
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: false,
     });
-    res
-      .status(201)
-      .json({ message: "User signed in successfully", success: true, user });
-    next();
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+    });
+
   } catch (error) {
-    console.error(error);
+    console.error("FULL ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-module.exports.Login = async (req, res, next) => {
+
+// ================= LOGIN =================
+module.exports.Login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if(!email || !password ){
-      return res.json({message:'All fields are required'})
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
     }
+
     const user = await User.findOne({ email });
-    if(!user){
-      return res.json({message:'Incorrect password or email' }) 
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password",
+      });
     }
-    const auth = await bcrypt.compare(password,user.password)
+
+    const auth = await bcrypt.compare(password, user.password);
     if (!auth) {
-      return res.json({message:'Incorrect password or email' }) 
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password",
+      });
     }
-     const token = createSecretToken(user._id);
-     res.cookie("token", token, {
-       withCredentials: true,
-       httpOnly: false,
-     });
-     res.status(201).json({ message: "User logged in successfully", success: true });
-     next()
+
+    const token = createSecretToken(user._id);
+
+    // ✅ FIXED cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+    });
+
   } catch (error) {
-    console.error(error);
+    console.error("FULL ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
-}
+};
