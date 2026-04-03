@@ -80,7 +80,7 @@ module.exports.Login = async (req, res) => {
 
     const token = createSecretToken(user._id);
 
-    // ✅ FIXED cookie
+    // ✅FIXED cookie
     res.cookie("token", token, {
       httpOnly: true,
       sameSite: "Lax",
