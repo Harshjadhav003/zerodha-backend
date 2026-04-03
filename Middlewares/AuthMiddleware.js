@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");  // ✅ ADD THIS
+const jwt = require("jsonwebtoken");  //  ADD THIS
 const User = require("../model/Usermodel");
 
 module.exports.userVerification = async (req, res) => {
@@ -23,7 +23,7 @@ module.exports.userVerification = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("VERIFY ERROR:", error);  // 🔥 ADD THIS
+    console.error("VERIFY ERROR:", error);  //  ADD THIS
     return res.json({ success: false });
   }
 };
