@@ -1,6 +1,7 @@
 const User = require("../model/Usermodel");
 const { createSecretToken } = require("../util/SecretToken");
 const bcrypt = require("bcryptjs");
+const Login = require("./AuthControllers.js");
 
 
 // ================= SIGNUP =================
@@ -80,7 +81,7 @@ module.exports.Login = async (req, res) => {
 
     const token = createSecretToken(user._id);
 
-    // ✅FIXED cookie
+    // FIXED cookie
     res.cookie("token", token, {
       httpOnly: true,
       sameSite: "Lax",
@@ -101,3 +102,15 @@ module.exports.Login = async (req, res) => {
     });
   }
 };
+
+// =================LOGOUT=================
+
+module.exports.Logout = async (req ,res)=>{
+   res.cookie("token", "", {
+    httpOnly: true,
+    expires: new Date(0), // expire immediately
+    sameSite: "Lax",
+    secure: false,
+  });
+  return res.json({ success: true, message: "Logged out successfully" });
+}
