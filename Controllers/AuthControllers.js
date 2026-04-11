@@ -29,11 +29,11 @@ module.exports.Signup = async (req, res) => {
     const token = createSecretToken(user._id);
 
     //  Set cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: false,
-    });
+   res.cookie("token", token, {
+  httpOnly: true,
+  sameSite: "None",   // IMPORTANT
+  secure: true,       // IMPORTANT (HTTPS)
+});
 
     return res.status(201).json({
       success: true,
@@ -82,11 +82,11 @@ module.exports.Login = async (req, res) => {
     const token = createSecretToken(user._id);
 
     // FIXED cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: false,
-    });
+   res.cookie("token", token, {
+  httpOnly: true,
+  sameSite: "None",   // IMPORTANT
+  secure: true,       // IMPORTANT (HTTPS)
+});
 
     return res.status(200).json({
       success: true,
@@ -107,10 +107,10 @@ module.exports.Login = async (req, res) => {
 
 module.exports.Logout = async (req ,res)=>{
    res.cookie("token", "", {
-    httpOnly: true,
-    expires: new Date(0), // expire immediately
-    sameSite: "Lax",
-    secure: false,
-  });
+  httpOnly: true,
+  expires: new Date(0),
+  sameSite: "None",
+  secure: true,
+});
   return res.json({ success: true, message: "Logged out successfully" });
 }

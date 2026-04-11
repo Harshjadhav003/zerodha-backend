@@ -14,18 +14,26 @@ const PORT = process.env.PORT || 3002;
 const url = process.env.MONGO_URL;
 
 const app = express();
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://zerodha-frontend-gilt.vercel.app",
+   "https://zerodha-dashboard-iota.vercel.app"
+];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: function (origin, callback) {
+      // allow requests with no origin (like Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
-
-app.use(cookieParser());   // middleware
-app.use(express.json());
-app.use("/", authRoute);
 
 // app.get('/addHoldings',async(req ,res)=>{
 //     let temHoldings = [
