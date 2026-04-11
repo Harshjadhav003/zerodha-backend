@@ -17,6 +17,7 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+app.use("/", authRoute);
 
 const allowedOrigins = [
   "http://localhost:5173",
