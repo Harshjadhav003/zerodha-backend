@@ -1,7 +1,6 @@
 const express = require("express");
 require("dotenv").config();
 const cookieParser = require("cookie-parser");
-
 const mongoose = require("mongoose");
 const cors = require("cors");
 
@@ -15,9 +14,7 @@ const url = process.env.MONGO_URL;
 
 const app = express();
 
-app.use(express.json());
-app.use(cookieParser());
-
+//  Allowed Origins
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -25,6 +22,7 @@ const allowedOrigins = [
   "https://zerodha-dashboard-iota.vercel.app"
 ];
 
+//  CORS Config
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -32,13 +30,18 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(new Error("Not allowed by CORS"));
+      return callback(null, false); // safer
     }
   },
   credentials: true,
 };
 
-app.use(cors(corsOptions));   //  MUST be before routes
+//  Apply CORS FIRST
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions)); // handle preflight
+
+app.use(express.json());
+app.use(cookieParser());//  MUST be before routes
 
 app.use("/", authRoute);
 

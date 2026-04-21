@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");  //  ADD THIS
+const jwt = require("jsonwebtoken");
 const User = require("../model/Usermodel");
 
 module.exports.userVerification = async (req, res) => {
@@ -6,24 +6,41 @@ module.exports.userVerification = async (req, res) => {
     const token = req.cookies?.token;
 
     if (!token) {
-      return res.json({ success: false });
+      return res.status(401).json({ success: false, message: "No token" });
     }
 
     const data = jwt.verify(token, process.env.TOKEN_KEY);
 
-    const user = await User.findById(data.id);
+    const userId = data.id || data._id;
+
+    const user = await User.findById(userId);
 
     if (!user) {
-      return res.json({ success: false });
+      return res.status(401).json({ success: false, message: "User not found" });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      user: user.username,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+      },
     });
 
   } catch (error) {
-    console.error("VERIFY ERROR:", error);  //  ADD THIS
-    return res.json({ success: false });
+    console.error("VERIFY ERROR:", error);
+
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        success: false,
+        message: "Token expired",
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
   }
 };
