@@ -4,17 +4,17 @@ const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-const { HoldingModel } = require('./model/HoldingModel');
-const { PositionModel } = require("./model/PositionModel");
-const { OrderModel } = require('./model/OrderModel');
 const authRoute = require("./routes/AuthRoute");
+const authMiddleware = require("./middlewares/AuthMiddleware");
+const dataRoutes = require("./routes/dataRoutes");
+const orderRoute = require("./routes/OrderRoute");
 
 const PORT = process.env.PORT || 3002;
 const url = process.env.MONGO_URL;
 
 const app = express();
 
-//  Allowed Origins
+// Allowed Origins
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -22,7 +22,7 @@ const allowedOrigins = [
   "https://zerodha-dashboard-iota.vercel.app"
 ];
 
-//  CORS Config
+// CORS Config
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -30,20 +30,24 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(null, false); // safer
+      return callback(null, false);
     }
   },
   credentials: true,
 };
 
-//  Apply CORS FIRST
+// Apply middlewares
 app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions)); // handle preflight
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
-app.use(cookieParser());//  MUST be before routes
+app.use(cookieParser());
 
-app.use("/", authRoute);
+// Routes
+app.use("/api/auth", authRoute);
+app.use("/api", authMiddleware, dataRoutes);
+app.use("/api", authMiddleware, orderRoute);
+
 
 // app.get('/addHoldings',async(req ,res)=>{
 //     let temHoldings = [
@@ -290,43 +294,6 @@ app.use("/", authRoute);
 
 // } );
 
-
-app.get('/allHoldings', async (req, res) => {
-    let allHoldings = await HoldingModel.find({});
-    res.json(allHoldings);
-});
-
-app.get('/allPositions' ,async (req ,res)=>{
-    let allPosition = await PositionModel.find({});
-    res.json(allPosition);
-});
-
-app.get('/allOrders', async (req, res) => {
-    let allOrders = await OrderModel.find({});
-    res.json(allOrders);
-});
-
-app.post("/newOrders", async (req, res) => {
-  try {
-    const { name, qty, price, mode } = req.body;
-
-    const newOrder = new OrderModel({
-      name,
-      qty,
-      price,
-      mode,
-    });
-
-    await newOrder.save();
-
-    res.status(201).json({ message: "Order saved successfully" });
-  } catch (err) {
-    res.status(500).json({
-      message: "Error saving order",
-      error: err.message,
-    });
-  }
-});
 
 
  mongoose.connect(url)

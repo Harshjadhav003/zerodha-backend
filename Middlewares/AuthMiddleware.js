@@ -44,3 +44,19 @@ module.exports.userVerification = async (req, res) => {
     });
   }
 };
+
+module.exports = (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  try {
+    const data = jwt.verify(token, process.env.TOKEN_KEY);
+    req.userId = data.id; // attach user
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};

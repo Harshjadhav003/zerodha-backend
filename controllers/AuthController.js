@@ -1,6 +1,7 @@
 const User = require("../model/Usermodel");
 const { createSecretToken } = require("../util/SecretToken");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // Helper for cookie config
 const getCookieOptions = () => {
@@ -13,6 +14,34 @@ const getCookieOptions = () => {
     maxAge: 3 * 24 * 60 * 60 * 1000,
   };
 };
+
+
+module.exports.userVerification = async (req, res) => {
+  try {
+    const token = req.cookies?.token;
+
+    if (!token) {
+      return res.json({ success: false });
+    }
+
+    const data = jwt.verify(token, process.env.TOKEN_KEY);
+    const user = await User.findById(data.id);
+
+    if (!user) {
+      return res.json({ success: false });
+    }
+
+    return res.json({
+      success: true,
+      user: user.username,
+    });
+
+  } catch (err) {
+    return res.json({ success: false });
+  }
+};
+
+ 
 
 // ================= SIGNUP =================
 module.exports.Signup = async (req, res) => {
