@@ -3,182 +3,68 @@ const { createSecretToken } = require("../util/SecretToken");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// Helper for cookie config
+// cookie config
 const getCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
 
   return {
     httpOnly: true,
-    secure: isProduction, //  false in dev
-    sameSite: isProduction ? "None" : "Lax", //  key change
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
     maxAge: 3 * 24 * 60 * 60 * 1000,
   };
 };
 
-
-module.exports.userVerification = async (req, res) => {
+// VERIFY
+exports.userVerification = async (req, res) => {
   try {
     const token = req.cookies?.token;
 
-    if (!token) {
-      return res.json({ success: false });
-    }
+    if (!token) return res.json({ success: false });
 
     const data = jwt.verify(token, process.env.TOKEN_KEY);
     const user = await User.findById(data.id);
 
-    if (!user) {
-      return res.json({ success: false });
-    }
+    if (!user) return res.json({ success: false });
 
     return res.json({
       success: true,
       user: user.username,
     });
-
-  } catch (err) {
+  } catch {
     return res.json({ success: false });
   }
 };
 
- 
+// SIGNUP
+exports.Signup = async (req, res) => {
+  const { email, password, username } = req.body;
 
-// ================= SIGNUP =================
-module.exports.Signup = async (req, res) => {
-  try {
-    const { email, password, username } = req.body;
+  const user = await User.create({ email, password, username });
 
-    // Validation
-    if (!email || !password || !username) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
+  const token = createSecretToken(user._id);
+  res.cookie("token", token, getCookieOptions());
 
-    // Check existing user
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists",
-      });
-    }
-
-
-    // Create user
-    const user = await User.create({
-      email,
-      password ,
-      username,
-    });
-
-    // Create token
-    const token = createSecretToken(user._id);
-
-    // Set cookie
-    res.cookie("token", token, getCookieOptions());
-
-    return res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username,
-      },
-    });
-
-  } catch (error) {
-    console.error("SIGNUP ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  res.status(201).json({ success: true, user });
 };
 
-// ================= LOGIN =================
-module.exports.Login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+// LOGIN
+exports.Login = async (req, res) => {
+  const { email, password } = req.body;
 
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
+  const user = await User.findOne({ email }).select("+password");
 
-    // Check user
-   const user = await User.findOne({ email }).select("+password");
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
+  const isAuth = await bcrypt.compare(password, user.password);
+  if (!isAuth) return res.status(400).json({ message: "Invalid" });
 
-    // Compare password
-    const isAuth = await bcrypt.compare(password, user.password);
-    if (!isAuth) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
+  const token = createSecretToken(user._id);
+  res.cookie("token", token, getCookieOptions());
 
-    // Create token
-    const token = createSecretToken(user._id);
-
-    // Set cookie
-    res.cookie("token", token, getCookieOptions());
-
-    return res.status(200).json({
-      success: true,
-      message: "Login successful",
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username,
-      },
-    });
-
-  } catch (error) {
-    console.error("LOGIN ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  res.json({ success: true, user });
 };
 
-//================= LOGOUT =================
-module.exports.Logout = async (req, res) => {
-  try {
-    const isProduction = process.env.NODE_ENV === "production";
-
-    res.cookie("token", "", {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "None" : "Lax",
-      expires: new Date(0), //  this deletes cookie
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Logged out successfully",
-    });
-
-  } catch (error) {
-    console.error("LOGOUT ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+// LOGOUT
+exports.Logout = async (req, res) => {
+  res.cookie("token", "", { expires: new Date(0) });
+  res.json({ success: true });
 };

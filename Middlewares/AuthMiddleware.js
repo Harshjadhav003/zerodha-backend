@@ -1,62 +1,30 @@
 const jwt = require("jsonwebtoken");
-const User = require("../model/Usermodel");
 
-module.exports.userVerification = async (req, res) => {
-  try {
-    const token = req.cookies?.token;
+module.exports = async (req, res, next) => {
+  let token = req.cookies?.token;
 
-    if (!token) {
-      return res.status(401).json({ success: false, message: "No token" });
-    }
+  // support header also
+  if (!token && req.headers.authorization) {
+    token = req.headers.authorization.split(" ")[1];
+  }
 
-    const data = jwt.verify(token, process.env.TOKEN_KEY);
+//  console.log(" TOKEN:", token);
 
-    const userId = data.id || data._id;
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(401).json({ success: false, message: "User not found" });
-    }
-
-    return res.status(200).json({
-      success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
     });
+  }
 
-  } catch (error) {
-    console.error("VERIFY ERROR:", error);
-
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Token expired",
-      });
-    }
-
+  try {
+    const data = jwt.verify(token, process.env.TOKEN_KEY);
+    req.userId = data.id || data._id;
+    next();
+  } catch (err) {
     return res.status(401).json({
       success: false,
       message: "Invalid token",
     });
-  }
-};
-
-module.exports = (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-
-  try {
-    const data = jwt.verify(token, process.env.TOKEN_KEY);
-    req.userId = data.id; // attach user
-    next();
-  } catch (err) {
-    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };

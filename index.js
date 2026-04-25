@@ -45,9 +45,8 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", authRoute);
-app.use("/api", authMiddleware, dataRoutes);
-app.use("/api", authMiddleware, orderRoute);
-
+app.use("/api", dataRoutes);
+app.use("/api",  orderRoute);
 
 // app.get('/addHoldings',async(req ,res)=>{
 //     let temHoldings = [

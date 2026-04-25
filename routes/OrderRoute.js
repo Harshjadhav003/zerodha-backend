@@ -1,7 +1,7 @@
 const router = require("express").Router();
-const authMiddleware = require("../middlewares/authMiddleware");
+const authMiddleware = require("../middlewares/AuthMiddleware");
 
-const { createOrder } = require("../controllers/OrderController");
+const { createOrder } = require("../controllers/orderController");
 
 router.post("/orders", authMiddleware, createOrder);
 

@@ -1,14 +1,16 @@
+const express = require("express");
 const router = require("express").Router();
-const authMiddleware = require("../middlewares/authMiddleware");
+const authMiddleware = require("../middlewares/AuthMiddleware");
+const rateLimiter = require("../middlewares/rateLimiter");
 
 const {
   getHoldings,
   getPositions,
   getOrders,
-} = require("../controllers/DataController");
+} = require("../controllers/dataController");
 
-router.get("/holdings", authMiddleware, getHoldings);
-router.get("/positions", authMiddleware, getPositions);
-router.get("/orders", authMiddleware, getOrders);
+router.get("/orders", authMiddleware, rateLimiter, getOrders);
+router.get("/holdings", authMiddleware, rateLimiter, getHoldings);
+router.get("/positions", authMiddleware, rateLimiter, getPositions);
 
 module.exports = router;
