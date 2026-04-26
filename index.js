@@ -6,13 +6,17 @@ const cors = require("cors");
 
 const authRoute = require("./routes/AuthRoute");
 const authMiddleware = require("./middlewares/AuthMiddleware");
-const dataRoutes = require("./routes/dataRoutes");
-const orderRoute = require("./routes/OrderRoute");
+const HoldingRoute = require("./routes/HoldingRoute");
+const OrderRoute = require("./routes/OrderRoute");
+const PositionRoute = require("./routes/PositionRoute");
+const NewOrderRoute = require("./routes/NewOrderRoute");
 
 const PORT = process.env.PORT || 3002;
 const url = process.env.MONGO_URL;
 
 const app = express();
+
+app.set("trust proxy", 1); // Trust first proxy (e.g. Nginx, Vercel)
 
 // Allowed Origins
 const allowedOrigins = [
@@ -25,12 +29,10 @@ const allowedOrigins = [
 // CORS Config
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(null, false);
+      return callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
@@ -43,12 +45,25 @@ app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
+
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 // Routes
 app.use("/api/auth", authRoute);
-app.use("/api", dataRoutes);
-app.use("/api",  orderRoute);
+app.use("/api", HoldingRoute);
+app.use("/api", PositionRoute);
+app.use("/api", OrderRoute);
+app.use("/api", NewOrderRoute);
 
-// app.get('/addHoldings',async(req ,res)=>{
+// app.get('/Holdings',async(req ,res)=>{
 //     let temHoldings = [
 //   {
 //     name: "BHARTIARTL",
@@ -219,7 +234,7 @@ app.use("/api",  orderRoute);
 
 // } );
 
-//
+
 
 // app.get('/addOrder' ,async (req ,res)=>{
 //        let tempOrder=[
