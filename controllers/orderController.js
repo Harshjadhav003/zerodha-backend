@@ -1,35 +1,28 @@
 const OrderModel = require("../model/OrderModel");
+const redis = require("../config/redis");
 
-exports.createOrder = async (req, res) => {
+exports.getOrders = async (req, res) => {
   try {
-    const { name, qty, price, mode } = req.body;
+    const cacheKey = `orders:${req.userId}`;
 
-    // validation
-    if (!name || !qty || !price || !mode) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
+    const cacheData = await redis.get(cacheKey);
+
+    if (cacheData) {
+      console.log("ORDERS CACHE HIT");
+      return res.json(JSON.parse(cacheData));
     }
 
-    const order = await OrderModel.create({
-      name,
-      qty,
-      price,
-      mode,
-      userId: req.userId, //  important
-    });
+    console.log("DB HIT");
 
-    res.status(201).json({
-      success: true,
-      message: "Order created successfully",
-      data: order,
-    });
+    const orders = await OrderModel.find({ userId: req.userId });
+
+    const response = { success: true, data: orders };
+
+    await redis.setex(cacheKey, 60, JSON.stringify(response));
+
+    res.json(response);
 
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ success: false, message: err.message });
   }
 };

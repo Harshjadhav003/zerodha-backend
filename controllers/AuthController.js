@@ -5,12 +5,11 @@ const jwt = require("jsonwebtoken");
 
 // cookie config
 const getCookieOptions = () => {
-  const isProduction = process.env.NODE_ENV === "production";
-
   return {
     httpOnly: true,
-    secure: isProduction,     // HTTPS only in prod
-    sameSite: isProduction ? "none" : "lax",
+    secure: true,
+    sameSite: "none",
+    path: "/", 
     maxAge: 3 * 24 * 60 * 60 * 1000,
   };
 };
@@ -42,33 +41,76 @@ exports.userVerification = async (req, res) => {
 
 // SIGNUP
 exports.Signup = async (req, res) => {
-  const { email, password, username } = req.body;
+  try {
+    const { email, password, username } = req.body;
 
-  const user = await User.create({ email, password, username });
+    if (!email || !password || !username) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
 
-  const token = createSecretToken(user._id);
-  res.cookie("token", token, getCookieOptions());
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: "User already exists" });
+    }
 
-  res.status(201).json({ success: true, user });
+    const user = await User.create({ email, password, username });
+
+    const token = createSecretToken(user._id);
+    res.cookie("token", token, getCookieOptions(req));
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(201).json({ success: true, message: "User signed in successfully", user: userResponse });
+  } catch (error) {
+    console.error("Signup error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
 };
 
 // LOGIN
 exports.Login = async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).select("+password");
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
 
-  const isAuth = await bcrypt.compare(password, user.password);
-  if (!isAuth) return res.status(400).json({ message: "Invalid" });
+    const user = await User.findOne({ email }).select("+password");
 
-  const token = createSecretToken(user._id);
-  res.cookie("token", token, getCookieOptions());
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
 
-  res.json({ success: true, user });
+    const isAuth = await bcrypt.compare(password, user.password);
+    if (!isAuth) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    const token = createSecretToken(user._id);
+    res.cookie("token", token, getCookieOptions(req));
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.json({ success: true, message: "User logged in successfully", user: userResponse });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
 };
 
 // LOGOUT
 exports.Logout = async (req, res) => {
-  res.cookie("token", "", { expires: new Date(0) });
+  res.cookie("token", "", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    expires: new Date(0),
+  });
   res.json({ success: true });
 };
