@@ -9,29 +9,33 @@ const getCookieOptions = () => {
 
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax",
+    secure: isProduction,     // HTTPS only in prod
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 3 * 24 * 60 * 60 * 1000,
   };
 };
-
 // VERIFY
 exports.userVerification = async (req, res) => {
   try {
     const token = req.cookies?.token;
 
-    if (!token) return res.json({ success: false });
+    if (!token) {
+      return res.json({ success: false });
+    }
 
     const data = jwt.verify(token, process.env.TOKEN_KEY);
+
     const user = await User.findById(data.id);
 
-    if (!user) return res.json({ success: false });
+    if (!user) {
+      return res.json({ success: false });
+    }
 
     return res.json({
       success: true,
       user: user.username,
     });
-  } catch {
+  } catch (err) {
     return res.json({ success: false });
   }
 };
