@@ -19,7 +19,7 @@ exports.userVerification = async (req, res) => {
     const token = req.cookies?.token;
 
     if (!token) {
-      return res.json({ success: false });
+      return res.json({ success: false, message: "No Token Provide " });
     }
 
     const data = jwt.verify(token, process.env.TOKEN_KEY);
@@ -112,5 +112,5 @@ exports.Logout = async (req, res) => {
     path: "/",
     expires: new Date(0),
   });
-  res.json({ success: true });
+  res.json({ success: true ,message: "User Logged out Succesfully" });
 };

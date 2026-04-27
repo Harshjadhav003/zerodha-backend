@@ -22,7 +22,7 @@ app.set("trust proxy", 1); // Trust first proxy (e.g. Nginx, Vercel)
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://zerodha-frontend-gilt.vercel.app",
+  "https://zerodha-iota-azure.vercel.app",
   "https://zerodha-dashboard-iota.vercel.app"
 ];
 
