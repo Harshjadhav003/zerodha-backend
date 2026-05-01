@@ -5,11 +5,13 @@ const jwt = require("jsonwebtoken");
 
 // cookie config
 const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+
   return {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/", 
+    secure: isProduction, // only true in prod
+    sameSite: isProduction ? "none" : "lax",
+    path: "/",
     maxAge: 3 * 24 * 60 * 60 * 1000,
   };
 };
@@ -22,7 +24,12 @@ exports.userVerification = async (req, res) => {
       return res.json({ success: false, message: "No Token Provide " });
     }
 
-    const data = jwt.verify(token, process.env.TOKEN_KEY);
+    let data;
+try {
+  data = jwt.verify(token, process.env.TOKEN_KEY);
+} catch (err) {
+  return res.json({ success: false, message: "Invalid token" });
+}
 
     const user = await User.findById(data.id);
 
@@ -62,11 +69,11 @@ exports.Signup = async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    res.status(201).json({ success: true, message: "User signed in successfully", user: userResponse });
+    res.status(201).json({ success: true, message: "User registered successfully", user: userResponse });
   } catch (error) {
-    console.error("Signup error:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
+  console.error("Signup FULL ERROR:", error);
+  res.status(500).json({ success: false, message: error.message });
+}
 };
 
 // LOGIN
