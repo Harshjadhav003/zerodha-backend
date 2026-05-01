@@ -8,7 +8,7 @@ exports.getOrders = async (req, res) => {
     const cacheData = await redis.get(cacheKey);
 
     if (cacheData) {
-      console.log("ORDERS CACHE HIT");
+      console.log("CACHE HIT");
       return res.json(JSON.parse(cacheData));
     }
 
@@ -18,11 +18,13 @@ exports.getOrders = async (req, res) => {
 
     const response = { success: true, data: orders };
 
-    await redis.setex(cacheKey, 60, JSON.stringify(response));
+    //  FIXED
+    await redis.set(cacheKey, JSON.stringify(response), "EX", 60);
 
     res.json(response);
 
   } catch (err) {
+    console.log("GET ORDERS ERROR:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
