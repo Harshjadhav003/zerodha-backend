@@ -17,4 +17,8 @@ const HoldingSchema = new Schema(
   { timestamps: true }
 );
 
-module.exports = { HoldingSchema } ;
+//  CREATE MODEL
+const HoldingModel = mongoose.model("Holding", HoldingSchema);
+
+//  EXPORT MODEL
+module.exports = HoldingModel;
