@@ -10,10 +10,7 @@ exports.getHoldings = async (req, res) => {
 
     if (cacheData) {
       console.log("CACHE HIT");
-      return res.json({
-        success: true,
-        data: JSON.parse(cacheData),
-      });
+      return res.json(JSON.parse(cacheData)); //  FIXED
     }
 
     // 2. DB call
@@ -22,13 +19,14 @@ exports.getHoldings = async (req, res) => {
       userId: req.userId,
     });
 
-    // 3. Store in Redis
-    await redis.setex(cacheKey, 60, JSON.stringify(holdings));
+    // 3. Prepare response
+    const response = { success: true, data: holdings };
 
-    res.json({
-      success: true,
-      data: holdings,
-    });
+    // 4. Store in Redis
+    await redis.set(cacheKey, JSON.stringify(response), "EX", 60);
+
+    // 5. Send response
+    res.json(response);
 
   } catch (err) {
     console.log("HOLDINGS ERROR:", err);
