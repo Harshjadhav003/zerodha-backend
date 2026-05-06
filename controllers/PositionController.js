@@ -1,4 +1,4 @@
-const PositionModel = require("../model/PositionModel");
+const PositionModel = require("../models/PositionModel");
 const redis = require("../config/redis");
 
 exports.getPositions = async (req, res) => {
