@@ -1,13 +1,17 @@
 const redis = require("../config/redis");
-const OrderModel = require("../model/OrderModel");
-const HoldingModel = require("../model/HoldingModel");
-const PositionModel = require("../model/PositionModel");
+const OrderModel = require("../models/OrderModel");
+const HoldingModel = require("../models/HoldingModel");
+const PositionModel = require("../models/PositionModel");
 
 exports.createOrder = async (req, res) => {
   try {
+    const io = req.app.get("io"); //  socket access
+
     let { name, qty, price, mode } = req.body;
 
-    // 🔥 normalize + convert
+    // =========================
+    // 1. VALIDATION
+    // =========================
     const normalizedMode = mode.toUpperCase();
     qty = Number(qty);
     price = Number(price);
@@ -19,24 +23,31 @@ exports.createOrder = async (req, res) => {
       });
     }
 
+    const userId = req.userId;
+
     // =========================
-    // 1. CREATE ORDER
+    // 2. EMIT PENDING (REAL-TIME)
+    // =========================
+    io.to(userId).emit("orderUpdate", {
+      status: "PENDING",
+      data: { name, qty, price, mode: normalizedMode },
+    });
+
+    // =========================
+    // 3. CREATE ORDER
     // =========================
     const order = await OrderModel.create({
       name,
       qty,
       price,
       mode: normalizedMode,
-      userId: req.userId,
+      userId,
     });
 
     // =========================
-    // 2. UPDATE HOLDINGS
+    // 4. UPDATE HOLDINGS
     // =========================
-    const holding = await HoldingModel.findOne({
-      userId: req.userId,
-      name,
-    });
+    const holding = await HoldingModel.findOne({ userId, name });
 
     if (normalizedMode === "BUY") {
       if (holding) {
@@ -52,7 +63,7 @@ exports.createOrder = async (req, res) => {
         await holding.save();
       } else {
         await HoldingModel.create({
-          userId: req.userId,
+          userId,
           name,
           qty,
           avg: price,
@@ -62,29 +73,37 @@ exports.createOrder = async (req, res) => {
     }
 
     if (normalizedMode === "SELL") {
-      if (holding) {
-        holding.qty -= qty;
-        holding.price = price;
+      if (!holding || holding.qty < qty) {
+        //  emit rejection
+        io.to(userId).emit("orderUpdate", {
+          status: "REJECTED",
+          message: "Not enough shares",
+        });
 
-        if (holding.qty <= 0) {
-          await holding.deleteOne();
-        } else {
-          await holding.save();
-        }
+        return res.status(400).json({
+          success: false,
+          message: "Not enough shares to sell",
+        });
+      }
+
+      holding.qty -= qty;
+      holding.price = price;
+
+      if (holding.qty === 0) {
+        await holding.deleteOne();
+      } else {
+        await holding.save();
       }
     }
 
     // =========================
-    // 3. UPDATE POSITIONS
+    // 5. UPDATE POSITIONS
     // =========================
-    let position = await PositionModel.findOne({
-      userId: req.userId,
-      name,
-    });
+    let position = await PositionModel.findOne({ userId, name });
 
     if (!position) {
       await PositionModel.create({
-        userId: req.userId,
+        userId,
         name,
         qty: normalizedMode === "BUY" ? qty : -qty,
         avg: price,
@@ -98,10 +117,36 @@ exports.createOrder = async (req, res) => {
 
       let newAvg = position.avg;
 
+      // ===== BUY LOGIC =====
       if (normalizedMode === "BUY") {
-        newAvg =
-          (position.avg * position.qty + price * qty) /
-          (position.qty + qty);
+        if (position.qty >= 0) {
+          newAvg =
+            (position.avg * position.qty + price * qty) /
+            (position.qty + qty);
+        } else {
+          if (Math.abs(position.qty) > qty) {
+            newAvg = position.avg;
+          } else if (Math.abs(position.qty) === qty) {
+            newAvg = 0;
+          } else {
+            newAvg = price;
+          }
+        }
+      }
+
+      // ===== SELL LOGIC =====
+      if (normalizedMode === "SELL") {
+        if (position.qty <= 0) {
+          newAvg = position.avg;
+        } else {
+          if (position.qty > qty) {
+            newAvg = position.avg;
+          } else if (position.qty === qty) {
+            newAvg = 0;
+          } else {
+            newAvg = price;
+          }
+        }
       }
 
       position.qty = newQty;
@@ -116,14 +161,25 @@ exports.createOrder = async (req, res) => {
     }
 
     // =========================
-    // 4. CLEAR CACHE
+    // 6. CLEAR CACHE
     // =========================
-    await redis.del(`orders:${req.userId}`);
-    await redis.del(`holdings:${req.userId}`);
-    await redis.del(`positions:${req.userId}`);
+    await redis.del(`orders:${userId}`);
+    await redis.del(`holdings:${userId}`);
+    await redis.del(`positions:${userId}`);
 
     // =========================
-    // 5. RESPONSE
+    // 7. EMIT SUCCESS EVENTS
+    // =========================
+    io.to(userId).emit("orderUpdate", {
+      status: "EXECUTED",
+      data: order,
+    });
+
+    io.to(userId).emit("holdings_update");
+    io.to(userId).emit("positions_update");
+
+    // =========================
+    // 8. RESPONSE
     // =========================
     res.status(201).json({
       success: true,
@@ -133,6 +189,7 @@ exports.createOrder = async (req, res) => {
 
   } catch (err) {
     console.log("CREATE ORDER ERROR:", err);
+
     res.status(500).json({
       success: false,
       message: err.message,
