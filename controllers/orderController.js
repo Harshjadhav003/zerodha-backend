@@ -1,4 +1,4 @@
-const OrderModel = require("../model/OrderModel");
+const OrderModel = require("../models/OrderModel");
 const redis = require("../config/redis");
 
 exports.getOrders = async (req, res) => {
