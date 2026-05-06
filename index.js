@@ -1,4 +1,6 @@
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 require("dotenv").config();
 const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
@@ -10,11 +12,32 @@ const HoldingRoute = require("./routes/HoldingRoute");
 const OrderRoute = require("./routes/OrderRoute");
 const PositionRoute = require("./routes/PositionRoute");
 const NewOrderRoute = require("./routes/NewOrderRoute");
+const socketHandler = require("./sockets/socketHandler");
+const { startPriceFeed } = require("./services/priceService");
 
 const PORT = process.env.PORT || 3002;
 const url = process.env.MONGO_URL;
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  }
+});
+
+// attach socket
+socketHandler(io);
+
+// start live price
+startPriceFeed(io);
+
+// make io available in controllers
+app.set("io", io);
+
+server.listen(3002, () => {
+  console.log("Server running on port 3002");
+});
 
 app.set("trust proxy", 1); // Trust first proxy (e.g. Nginx, Vercel)
 
