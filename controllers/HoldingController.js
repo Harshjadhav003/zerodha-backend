@@ -1,4 +1,4 @@
-const HoldingModel = require("../model/HoldingModel");
+const HoldingModel = require("../models/HoldingModel");
 const redis = require("../config/redis");
 
 exports.getHoldings = async (req, res) => {
@@ -17,8 +17,7 @@ exports.getHoldings = async (req, res) => {
     console.log("DB HIT");
     const holdings = await HoldingModel.find({
       userId: req.userId,
-    });
-
+    })
     // 3. Prepare response
     const response = { success: true, data: holdings };
 
