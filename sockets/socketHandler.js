@@ -22,15 +22,20 @@ module.exports = (io) => {
         const isSuccess = Math.random() > 0.2;
 
         if (isSuccess) {
-          // TODO: call DB logic here
-
+         
           io.to(userId).emit("orderUpdate", {
             status: "EXECUTED",
             data,
           });
 
-          io.to(userId).emit("holdings_update");
-          io.to(userId).emit("positions_update");
+          io.to(userId).emit("holdings_update", {
+            status: "UPDATED",
+            data,
+          });
+          io.to(userId).emit("positions_update", {
+            status: "UPDATED",
+            data,
+          });
         } else {
           io.to(userId).emit("orderUpdate", {
             status: "REJECTED",
