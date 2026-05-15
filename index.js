@@ -12,6 +12,7 @@ const HoldingRoute = require("./routes/HoldingRoute");
 const OrderRoute = require("./routes/OrderRoute");
 const PositionRoute = require("./routes/PositionRoute");
 const NewOrderRoute = require("./routes/NewOrderRoute");
+
 const socketHandler = require("./sockets/socketHandler");
 const { startPriceFeed } = require("./services/priceService");
 
@@ -19,72 +20,128 @@ const PORT = process.env.PORT || 3002;
 const url = process.env.MONGO_URL;
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-  }
-});
 
-// attach socket
-socketHandler(io);
+/* =========================
+   ALLOWED ORIGINS
+========================= */
 
-// start live price
-startPriceFeed(io);
-
-// make io available in controllers
-app.set("io", io);
-
-server.listen(3002, () => {
-  console.log("Server running on port 3002");
-});
-
-app.set("trust proxy", 1); // Trust first proxy (e.g. Nginx, Vercel)
-
-// Allowed Origins
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://zerodha-iota-azure.vercel.app",
-  "https://zerodha-dashboard-iota.vercel.app"
+  "https://zerodha-dashboard-iota.vercel.app",
 ];
 
-// CORS Config
+/* =========================
+   CREATE HTTP SERVER
+========================= */
+
+const server = http.createServer(app);
+
+/* =========================
+   SOCKET.IO
+========================= */
+
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
+});
+
+/* =========================
+   SOCKET HANDLER
+========================= */
+
+socketHandler(io);
+
+/* =========================
+   LIVE PRICE FEED
+========================= */
+
+startPriceFeed(io);
+
+/* =========================
+   MAKE IO AVAILABLE
+========================= */
+
+app.set("io", io);
+
+/* =========================
+   TRUST PROXY
+========================= */
+
+app.set("trust proxy", 1);
+
+/* =========================
+   CORS CONFIG
+========================= */
+
 const corsOptions = {
   origin: function (origin, callback) {
+    // allow requests with no origin
+    // (mobile apps, postman, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
+      callback(null, true);
     } else {
-      return callback(new Error("Not allowed by CORS"));
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
 };
 
-// Apply middlewares
+/* =========================
+   MIDDLEWARES
+========================= */
+
 app.use(cors(corsOptions));
+
 app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
+
 app.use(cookieParser());
 
+/* =========================
+   CACHE CONTROL
+========================= */
 
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 });
 
+/* =========================
+   ALLOW CREDENTIALS
+========================= */
+
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Credentials", "true");
   next();
 });
 
-// Routes
+/* =========================
+   ROUTES
+========================= */
+
 app.use("/api/auth", authRoute);
+
 app.use("/api", HoldingRoute);
+
 app.use("/api", PositionRoute);
+
 app.use("/api", OrderRoute);
+
 app.use("/api", NewOrderRoute);
+
+/* =========================
+   TEST ROUTE
+========================= */
+
+app.get("/", (req, res) => {
+  res.send("Backend Running...");
+});
+
 
 // app.get('/Holdings',async(req ,res)=>{
 //     let temHoldings = [
@@ -333,14 +390,18 @@ app.use("/api", NewOrderRoute);
 
 
 
- mongoose.connect(url)
+/* =========================
+   DATABASE CONNECTION
+========================= */
+
+mongoose
+  .connect(url)
   .then(() => {
     console.log("DB CONNECTED");
 
-    app.listen(PORT, () => {
-      console.log(`App started on port ${PORT}!`);
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
-
   })
   .catch((err) => {
     console.log("DB connection error:", err);
