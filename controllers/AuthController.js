@@ -4,37 +4,43 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 // cookie config
-const getCookieOptions = () => {
+const getCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
-
+  
   return {
     httpOnly: true,
-    secure: isProduction, // only true in prod
+    secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 3 * 24 * 60 * 60 * 1000,
   };
 };
+
 // VERIFY
 exports.userVerification = async (req, res) => {
   try {
-    const token = req.cookies?.token;
+    let token = req.cookies?.token;
 
-    if (!token) {
-      return res.json({ success: false, message: "No Token Provide " });
+    // support header fallback
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token || token === "null" || token === "undefined") {
+      return res.json({ success: false, message: "No Token Provided" });
     }
 
     let data;
-try {
-  data = jwt.verify(token, process.env.TOKEN_KEY);
-} catch (err) {
-  return res.json({ success: false, message: "Invalid token" });
-}
+    try {
+      data = jwt.verify(token, process.env.TOKEN_KEY);
+    } catch (err) {
+      return res.json({ success: false, message: "Invalid token" });
+    }
 
     const user = await User.findById(data.id);
 
     if (!user) {
-      return res.json({ success: false });
+      return res.json({ success: false, message: "User not found" });
     }
 
     return res.json({
@@ -42,6 +48,7 @@ try {
       user: user.username,
     });
   } catch (err) {
+    console.error("Verification error:", err);
     return res.json({ success: false });
   }
 };
@@ -69,11 +76,16 @@ exports.Signup = async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    res.status(201).json({ success: true, message: "User registered successfully", user: userResponse });
+    res.status(201).json({ 
+      success: true, 
+      message: "User registered successfully", 
+      user: userResponse,
+      token // Return token for localStorage
+    });
   } catch (error) {
-  console.error("Signup FULL ERROR:", error);
-  res.status(500).json({ success: false, message: error.message });
-}
+    console.error("Signup FULL ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 // LOGIN
@@ -103,7 +115,12 @@ exports.Login = async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    res.json({ success: true, message: "User logged in successfully", user: userResponse });
+    res.json({ 
+      success: true, 
+      message: "User logged in successfully", 
+      user: userResponse,
+      token // Return token for localStorage
+    });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -113,10 +130,7 @@ exports.Login = async (req, res) => {
 // LOGOUT
 exports.Logout = async (req, res) => {
   res.cookie("token", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
+    ...getCookieOptions(req),
     expires: new Date(0),
   });
   res.json({ success: true ,message: "User Logged out Succesfully" });
