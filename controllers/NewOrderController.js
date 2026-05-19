@@ -12,14 +12,28 @@ exports.createOrder = async (req, res) => {
     // =========================
     // 1. VALIDATION
     // =========================
+    if (!name || !qty || !price || !mode) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required (name, qty, price, mode)",
+      });
+    }
+
     const normalizedMode = mode.toUpperCase();
     qty = Number(qty);
     price = Number(price);
 
-    if (!name || !qty || !price || !normalizedMode) {
+    if (isNaN(qty) || isNaN(price)) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "Quantity and price must be valid numbers",
+      });
+    }
+
+    if (normalizedMode !== "BUY" && normalizedMode !== "SELL") {
+      return res.status(400).json({
+        success: false,
+        message: "Mode must be either BUY or SELL",
       });
     }
 
@@ -161,11 +175,15 @@ exports.createOrder = async (req, res) => {
     }
 
     // =========================
-    // 6. CLEAR CACHE
+    // 6. CLEAR CACHE (FAIL-SAFE)
     // =========================
-    await redis.del(`orders:${userId}`);
-    await redis.del(`holdings:${userId}`);
-    await redis.del(`positions:${userId}`);
+    try {
+      await redis.del(`orders:${userId}`);
+      await redis.del(`holdings:${userId}`);
+      await redis.del(`positions:${userId}`);
+    } catch (redisErr) {
+      console.error("REDIS DEL ERROR:", redisErr);
+    }
 
     // =========================
     // 7. EMIT SUCCESS EVENTS
