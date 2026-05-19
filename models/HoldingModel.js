@@ -1,4 +1,4 @@
 const mongoose = require("mongoose");
-const { HoldingSchema } = require("../schema/HoldingSchema");
+const HoldingSchema = require("../schema/HoldingSchema");
 
-module.exports = mongoose.model("Holding", HoldingSchema);
+module.exports = mongoose.models.Holding || mongoose.model("Holding", HoldingSchema);
