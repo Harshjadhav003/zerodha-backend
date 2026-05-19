@@ -6,6 +6,8 @@ const PositionSchema = new Schema(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+      index: true,
     },
     product: String,
     name: String,
@@ -19,6 +21,4 @@ const PositionSchema = new Schema(
   { timestamps: true }
 );
 
-const PositionModel = mongoose.model("Position", PositionSchema);
-
-module.exports = PositionModel;
+module.exports = PositionSchema;

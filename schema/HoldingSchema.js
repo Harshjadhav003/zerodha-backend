@@ -6,6 +6,8 @@ const HoldingSchema = new Schema(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+      index: true,
     },
     name: String,
     qty: Number,
@@ -17,8 +19,4 @@ const HoldingSchema = new Schema(
   { timestamps: true }
 );
 
-//  CREATE MODEL
-const HoldingModel = mongoose.model("Holding", HoldingSchema);
-
-//  EXPORT MODEL
-module.exports = HoldingModel;
+module.exports = HoldingSchema;
