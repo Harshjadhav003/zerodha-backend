@@ -1,5 +1,7 @@
 const User = require("../models/Usermodel");
 const { createSecretToken } = require("../utils/SecretToken");
+const ErrorHandler = require("../utils/ErrorHandler");
+const asyncHandler = require("../middlewares/asyncHandler");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -7,8 +9,8 @@ const jwt = require("jsonwebtoken");
 const getCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
   
-  return {
-    httpOnly: true,
+  return { 
+    httpOnly: true, 
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
     path: "/",
@@ -17,121 +19,108 @@ const getCookieOptions = (req) => {
 };
 
 // VERIFY
-exports.userVerification = async (req, res) => {
-  try {
-    let token = req.cookies?.token;
+exports.userVerification = asyncHandler(async (req, res, next) => {
+  let token = req.cookies?.token;
 
-    // support header fallback
-    if (!token && req.headers.authorization) {
-      token = req.headers.authorization.split(" ")[1];
-    }
-
-    if (!token || token === "null" || token === "undefined") {
-      return res.json({ success: false, message: "No Token Provided" });
-    }
-
-    let data;
-    try {
-      data = jwt.verify(token, process.env.TOKEN_KEY);
-    } catch (err) {
-      return res.json({ success: false, message: "Invalid token" });
-    }
-
-    const user = await User.findById(data.id);
-
-    if (!user) {
-      return res.json({ success: false, message: "User not found" });
-    }
-
-    return res.json({
-      success: true,
-      user: user.username,
-    });
-  } catch (err) {
-    console.error("Verification error:", err);
-    return res.json({ success: false });
+  if (!token && req.headers.authorization) {
+    token = req.headers.authorization.split(" ")[1];
   }
-};
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "No Token Provided",
+    });
+  }
+
+  const data = jwt.verify(token, process.env.TOKEN_KEY);
+
+  const user = await User.findById(data.id);
+
+  if (!user) {
+   return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.json({
+    success: true,
+    user: user.username,
+  });
+});
 
 // SIGNUP
-exports.Signup = async (req, res) => {
-  try {
-    const { email, password, username } = req.body;
+exports.Signup = asyncHandler(async (req, res, next) => {
+  const { email, password, username } = req.body;
 
-    if (!email || !password || !username) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
-    }
+ if (!email || !password || !username) {
+  return next(new ErrorHandler("All fields are required", 400));
+}
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: "User already exists" });
-    }
+  const existingUser = await User.findOne({ email });
 
-    const user = await User.create({ email, password, username });
+if (existingUser) {
+  return next(new ErrorHandler("User already exists", 400));
+}
 
-    const token = createSecretToken(user._id);
-    res.cookie("token", token, getCookieOptions(req));
+  const user = await User.create({
+    email,
+    password,
+    username,
+  });
 
-    // Remove password from response
-    const userResponse = user.toObject();
-    delete userResponse.password;
+  const token = createSecretToken(user._id);
 
-    res.status(201).json({ 
-      success: true, 
-      message: "User registered successfully", 
-      user: userResponse,
-      token // Return token for localStorage
-    });
-  } catch (error) {
-    console.error("Signup FULL ERROR:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+  res.cookie("token", token, getCookieOptions(req));
 
+  const userResponse = user.toObject();
+  delete userResponse.password;
+
+  res.status(201).json({
+    success: true,
+    message: "User registered successfully",
+    user: userResponse,
+    token,
+  });
+});
 // LOGIN
-exports.Login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+exports.Login = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
-    }
+if (!email || !password) {
+  return next(new ErrorHandler("All fields are required", 400));
+}
 
-    const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne({ email }).select("+password");
 
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
+  if (!user) {
+  return next(new ErrorHandler("User not found", 404));
+}
+  
 
-    const isAuth = await bcrypt.compare(password, user.password);
-    if (!isAuth) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
-    }
+  const isAuth = await bcrypt.compare(password, user.password);
 
-    const token = createSecretToken(user._id);
-    res.cookie("token", token, getCookieOptions(req));
+ if (!isAuth) {
+  return next(new ErrorHandler("Invalid email or password", 401));
+}
 
-    // Remove password from response
-    const userResponse = user.toObject();
-    delete userResponse.password;
+  const token = createSecretToken(user._id);
 
-    res.json({ 
-      success: true, 
-      message: "User logged in successfully", 
-      user: userResponse,
-      token // Return token for localStorage
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-};
+  res.cookie("token", token, getCookieOptions(req));
 
+  const userResponse = user.toObject();
+  delete userResponse.password;
+
+  res.json({
+    success: true,
+    message: "User logged in successfully",
+    user: userResponse,
+    token,
+  });
+});
 // LOGOUT
-exports.Logout = async (req, res) => {
+exports.Logout = asyncHandler(async (req, res, next) => {
   res.cookie("token", "", {
     ...getCookieOptions(req),
     expires: new Date(0),
   });
   res.json({ success: true ,message: "User Logged out Succesfully" });
-};
+});
