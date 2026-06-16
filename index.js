@@ -15,6 +15,7 @@ const NewOrderRoute = require("./routes/NewOrderRoute");
 
 const socketHandler = require("./sockets/socketHandler");
 const { startPriceFeed } = require("./services/priceService");
+const errorMiddleware = require("./middlewares/errorMiddleware");
 
 const PORT = process.env.PORT || 3002;
 const url = process.env.MONGO_URL;
@@ -102,6 +103,8 @@ app.use(express.json());
 
 app.use(cookieParser());
 
+
+
 /* =========================
    CACHE CONTROL
 ========================= */
@@ -125,22 +128,17 @@ app.use((req, res, next) => {
 ========================= */
 
 app.use("/api/auth", authRoute);
-
 app.use("/api", HoldingRoute);
-
 app.use("/api", PositionRoute);
-
 app.use("/api", OrderRoute);
-
 app.use("/api", NewOrderRoute);
-
-/* =========================
-   TEST ROUTE
-========================= */
 
 app.get("/", (req, res) => {
   res.send("Backend Running...");
 });
+
+// LAST MIDDLEWARE
+app.use(errorMiddleware);
 
 
 // app.get('/Holdings',async(req ,res)=>{
